@@ -1,0 +1,10 @@
+@import "tailwindcss";
+
+/* 强制背景为深黑色，防止 Tailwind 没加载出来 */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #020617; /* 深色背景 */
+  color: white;
+  font-family: sans-serif;
+}
