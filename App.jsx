@@ -348,14 +348,19 @@ export default function App() {
             ))}
           </div>
 
-          <AnimatePresence>
-            {phaseTip && (
-              <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-[150] pointer-events-none">
-                <div className="bg-emerald-500/20 backdrop-blur-xl border-2 border-emerald-500 px-10 py-4 rounded-full shadow-[0_0_30px_rgba(16,185,129,0.4)]">
-                   <span className="text-3xl font-black text-white italic tracking-tighter">{phaseTip}</span>
-                </div>
-              </motion.div>
-            )}
+        {/* 回合提示 - 已移至左侧 */}
+        {phaseTip && (
+           <motion.div 
+             initial={{ opacity: 0, x: -50 }} 
+             animate={{ opacity: 1, x: 0 }} 
+             exit={{ opacity: 0, x: -50 }} 
+             className="absolute left-10 top-1/2 -translate-y-1/2 z-[150] pointer-events-none"
+           >
+            <div className="bg-emerald-500/20 backdrop-blur-xl border-2 border-emerald-500 px-6 py-3 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.4)]">
+               <span className="text-xl font-black text-white italic tracking-tighter">{phaseTip}</span>
+            </div>
+           </motion.div>
+         )}
 
             {winnerInfo && gamePhase !== 'gameOver' && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="absolute inset-0 flex items-center justify-center z-[100] pointer-events-none">
