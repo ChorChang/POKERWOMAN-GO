@@ -6,83 +6,40 @@ const suits = ['♠', '♥', '♣', '♦'];
 const values = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 const valueMap = { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, 'J': 11, 'Q': 12, 'K': 13, 'A': 14 };
 
-// 已替换为您提供的最新规则逻辑
 const evaluateHand = (cards) => {
   if (cards.length < 2) return { score: 0, name: "计算中" };
-
-  // 1. 提取数值并排序（从大到小），提取花色
   const vList = cards.map(c => valueMap[c.value]).sort((a, b) => b - a);
   const sCounts = {};
   cards.forEach(c => sCounts[c.suit] = (sCounts[c.suit] || 0) + 1);
-
-  // 2. 统计各点数出现的次数
   const counts = {};
   cards.forEach(c => counts[valueMap[c.value]] = (counts[valueMap[c.value]] || 0) + 1);
   const sortedCounts = Object.entries(counts)
     .map(([val, count]) => ({ val: parseInt(val), count }))
     .sort((a, b) => b.count - a.count || b.val - a.val);
-
-  // 3. 判定同花
   const flushSuit = Object.keys(sCounts).find(s => sCounts[s] >= 5);
   const flushCards = flushSuit ? cards.filter(c => c.suit === flushSuit).map(c => valueMap[c.value]).sort((a, b) => b - a) : null;
-
-  // 4. 判定顺子工具函数 (支持 A2345)
   const getStraightMax = (uniqueValues) => {
     const vals = Array.from(new Set(uniqueValues)).sort((a, b) => b - a);
-    if (vals.includes(14)) vals.push(1); // A 也可以当 1 使用
+    if (vals.includes(14)) vals.push(1);
     for (let i = 0; i <= vals.length - 5; i++) {
       if (vals[i] - vals[i + 4] === 4) return vals[i];
     }
     return null;
   };
-
   const straightMax = getStraightMax(vList);
   const straightFlushMax = flushCards ? getStraightMax(flushCards) : null;
 
-  // 5. 严格按照规则分级返回 (Score 基数保证等级压制)
-  
-  // 皇家同花顺 / 同花顺
   if (straightFlushMax) {
     if (straightFlushMax === 14) return { score: 900, name: "皇家同花顺" };
     return { score: 800 + straightFlushMax, name: "同花顺" };
   }
-
-  // 四条
-  if (sortedCounts[0].count === 4) {
-    return { score: 700 + sortedCounts[0].val, name: "四条" };
-  }
-
-  // 葫芦 (三条 + 一对)
-  if (sortedCounts[0].count === 3 && sortedCounts[1]?.count >= 2) {
-    return { score: 600 + sortedCounts[0].val, name: "葫芦" };
-  }
-
-  // 同花
-  if (flushCards) {
-    return { score: 500 + flushCards[0], name: "同花" };
-  }
-
-  // 顺子
-  if (straightMax) {
-    return { score: 400 + straightMax, name: "顺子" };
-  }
-
-  // 三条
-  if (sortedCounts[0].count === 3) {
-    return { score: 300 + sortedCounts[0].val, name: "三条" };
-  }
-
-  // 两对
-  if (sortedCounts[0].count === 2 && sortedCounts[1]?.count === 2) {
-    return { score: 200 + sortedCounts[0].val + (sortedCounts[1].val / 15), name: "两对" };
-  }
-
-  // 一对
-  if (sortedCounts[0].count === 2) {
-    return { score: 100 + sortedCounts[0].val, name: "一对" };
-  }
-
-  // 高牌
+  if (sortedCounts[0].count === 4) return { score: 700 + sortedCounts[0].val, name: "四条" };
+  if (sortedCounts[0].count === 3 && sortedCounts[1]?.count >= 2) return { score: 600 + sortedCounts[0].val, name: "葫芦" };
+  if (flushCards) return { score: 500 + flushCards[0], name: "同花" };
+  if (straightMax) return { score: 400 + straightMax, name: "顺子" };
+  if (sortedCounts[0].count === 3) return { score: 300 + sortedCounts[0].val, name: "三条" };
+  if (sortedCounts[0].count === 2 && sortedCounts[1]?.count === 2) return { score: 200 + sortedCounts[0].val + (sortedCounts[1].val / 15), name: "两对" };
+  if (sortedCounts[0].count === 2) return { score: 100 + sortedCounts[0].val, name: "一对" };
   return { score: vList[0], name: "高牌" };
 };
 
@@ -128,30 +85,17 @@ export default function App() {
     const newDeck = [];
     suits.forEach(s => values.forEach(v => newDeck.push({ suit: s, value: v })));
     const shuffled = newDeck.sort(() => Math.random() - 0.5);
-    
     const sbIdx = (dIdx + 1) % currPlayers.length;
     const bbIdx = (dIdx + 2) % currPlayers.length;
     const utgIdx = (dIdx + 3) % currPlayers.length;
-
     let ptr = 0;
     const resetPlayers = currPlayers.map((p, idx) => {
-      let role = "";
-      let bet = 0;
-      let money = p.money;
+      let role = ""; let bet = 0; let money = p.money;
       if (idx === dIdx) role = "庄家 (BTN)";
       if (idx === sbIdx) { role = "小盲 (SB)"; bet = setup.smallBlind; money -= bet; }
       if (idx === bbIdx) { role = "大盲 (BB)"; bet = setup.smallBlind * 2; money -= bet; }
-      
-      return { 
-        ...p, 
-        cards: [shuffled[ptr++], shuffled[ptr++]], 
-        currentBet: bet, 
-        money: money,
-        isFolded: false,
-        role: role
-      };
+      return { ...p, cards: [shuffled[ptr++], shuffled[ptr++]], currentBet: bet, money: money, isFolded: false, role: role };
     });
-
     setDeck(shuffled.slice(ptr));
     setCommunityCards([]);
     setPot(setup.smallBlind * 3);
@@ -166,7 +110,6 @@ export default function App() {
     if (gamePhase === 'showdown' || gamePhase === 'gameOver') return;
     let newPlayers = [...players];
     const p = newPlayers[playerId];
-    
     if (type === 'fold') p.isFolded = true;
     else if (type === 'call') {
       const diff = highestBet - p.currentBet;
@@ -181,7 +124,6 @@ export default function App() {
       if (p.currentBet > highestBet) setHighestBet(p.currentBet);
       setPot(prev => prev + move);
     }
-
     setPlayers(newPlayers);
     checkNext(newPlayers, playerId);
   };
@@ -189,15 +131,12 @@ export default function App() {
   const checkNext = (curr, lastId) => {
     const active = curr.filter(p => !p.isFolded);
     if (active.length === 1) return endRound(active[0].id);
-
     let next = (lastId + 1) % curr.length;
     while (curr[next].isFolded || (curr[next].money === 0 && curr[next].currentBet === highestBet)) {
       next = (next + 1) % curr.length;
       if (next === lastId) break;
     }
-
     const allMatched = curr.every(p => p.isFolded || p.money === 0 || p.currentBet === highestBet);
-    
     if (allMatched && highestBet > 0) {
       setTimeout(() => advancePhase(curr), 600);
     } else if (allMatched && highestBet === 0 && next === (dealerIndex + 1) % curr.length) {
@@ -208,12 +147,10 @@ export default function App() {
   };
 
   const advancePhase = (curr) => {
-    if (gamePhase === 'showdown' || gamePhase === 'gameOver' || gamePhase === 'calculating_end') return;
-    
+    if (['showdown', 'gameOver', 'calculating_end'].includes(gamePhase)) return;
     const resetPlayers = curr.map(p => ({ ...p, currentBet: 0 }));
     setHighestBet(0);
     setPlayers(resetPlayers);
-
     let nextStarter = (dealerIndex + 1) % curr.length;
     while (curr[nextStarter].isFolded) nextStarter = (nextStarter + 1) % curr.length;
     setCurrentTurn(nextStarter);
@@ -223,11 +160,11 @@ export default function App() {
       setGamePhase('flop');
       showTip("FLOP - 翻牌圈");
     } else if (gamePhase === 'flop') {
-      setCommunityCards(prev => [...prev, deck[3]]);
+      setCommunityCards(deck.slice(0, 4));
       setGamePhase('turn');
       showTip("TURN - 转牌圈");
     } else if (gamePhase === 'turn') {
-      setCommunityCards(prev => [...prev, deck[4]]);
+      setCommunityCards(deck.slice(0, 5));
       setGamePhase('river');
       showTip("RIVER - 河牌圈");
     } else if (gamePhase === 'river') {
@@ -244,7 +181,6 @@ export default function App() {
     const updatedPlayers = players.map(p => p.id === wid ? { ...p, money: p.money + pot } : p);
     setPlayers(updatedPlayers);
     setWinnerInfo({ name: players[wid].name, hand: handName });
-    
     const hasBankrupt = updatedPlayers.some(p => p.money <= 0);
     if (hasBankrupt) {
       setGamePhase('calculating_end');
@@ -261,7 +197,6 @@ export default function App() {
         const hand = evaluateHand([...p.cards, ...communityCards]);
         const confidence = Math.random();
         const toCall = highestBet - p.currentBet;
-
         if (p.personality === 'aggressive') {
           if (hand.score > 300 || confidence > 0.7) handleAction(p.id, 'raise', 100);
           else handleAction(p.id, 'call');
@@ -350,9 +285,14 @@ export default function App() {
 
           <AnimatePresence>
             {phaseTip && (
-              <motion.div initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 flex items-center justify-center z-[150] pointer-events-none">
-                <div className="bg-emerald-500/20 backdrop-blur-xl border-2 border-emerald-500 px-10 py-4 rounded-full shadow-[0_0_30px_rgba(16,185,129,0.4)]">
-                   <span className="text-3xl font-black text-white italic tracking-tighter">{phaseTip}</span>
+              <motion.div 
+                initial={{ opacity: 0, x: -50 }} 
+                animate={{ opacity: 1, x: 0 }} 
+                exit={{ opacity: 0, x: -50 }} 
+                className="absolute left-10 top-1/2 -translate-y-1/2 z-[150] pointer-events-none"
+              >
+                <div className="bg-emerald-500/20 backdrop-blur-xl border-2 border-emerald-500 px-6 py-3 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.4)]">
+                   <span className="text-xl font-black text-white italic tracking-tighter">{phaseTip}</span>
                 </div>
               </motion.div>
             )}
@@ -361,7 +301,7 @@ export default function App() {
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="absolute inset-0 flex items-center justify-center z-[100] pointer-events-none">
                 <div className="bg-black/90 p-8 rounded-3xl border border-yellow-500 shadow-[0_0_50px_rgba(234,179,8,0.3)] text-center">
                   <p className="text-yellow-500 font-black tracking-tighter uppercase mb-1">Round Winner</p>
-                  <h2 className="text-4xl font-black mb-2">{winnerInfo.name}</h2>
+                  <h2 className="text-4xl font-black mb-2 text-white">{winnerInfo.name}</h2>
                   <p className="text-emerald-400 font-bold">牌型: {winnerInfo.hand}</p>
                 </div>
               </motion.div>
@@ -385,7 +325,7 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => window.location.reload()} className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black text-xl transition-all shadow-lg">返回主菜单</button>
+              <button onClick={() => window.location.reload()} className="w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-black text-xl transition-all shadow-lg text-white">返回主菜单</button>
             </div>
           </motion.div>
         )}
@@ -417,7 +357,7 @@ export default function App() {
                   <button onClick={() => handleAction(0, 'fold')} className="text-slate-400 hover:text-white font-bold px-4 transition-colors">弃牌</button>
                   <button 
                     onClick={() => handleAction(0, 'call')} 
-                    className="bg-indigo-600 hover:bg-indigo-500 px-8 py-4 rounded-2xl font-black shadow-lg min-w-[160px]"
+                    className="bg-indigo-600 hover:bg-indigo-500 px-8 py-4 rounded-2xl font-black shadow-lg min-w-[160px] text-white"
                   >
                     {highestBet === 0 
                       ? "CHECK" 
@@ -428,8 +368,8 @@ export default function App() {
                   <div className="flex flex-col gap-2">
                     <input type="range" min="10" max={players[0].money} step="10" value={raiseAmount} onChange={e => setRaiseAmount(parseInt(e.target.value))} className="w-32 accent-emerald-500"/>
                     <div className="flex gap-2">
-                      <button onClick={() => handleAction(0, 'raise', raiseAmount)} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl text-xs font-black">加注 ${raiseAmount}</button>
-                      <button onClick={() => handleAction(0, 'allin')} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-xs font-black">ALL IN</button>
+                      <button onClick={() => handleAction(0, 'raise', raiseAmount)} className="bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded-xl text-xs font-black text-white">加注 ${raiseAmount}</button>
+                      <button onClick={() => handleAction(0, 'allin')} className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-xl text-xs font-black text-white">ALL IN</button>
                     </div>
                   </div>
                 </>
